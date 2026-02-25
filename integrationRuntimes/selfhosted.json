@@ -1,0 +1,8 @@
+{
+    "name": "selfhosted",
+    "type": "Microsoft.DataFactory/factories/integrationRuntimes",
+    "properties": {
+        "type": "SelfHosted",
+        "description": "Self Hosted Integration Runtime"
+    }
+}
