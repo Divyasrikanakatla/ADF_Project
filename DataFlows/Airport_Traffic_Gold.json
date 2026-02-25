@@ -1,0 +1,77 @@
+{
+    "name": "Airport_Traffic_Gold",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "AzureSqlTable5",
+                        "type": "DatasetReference"
+                    },
+                    "name": "AirportTraffic"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "AzureSqlTable7",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Totalflights"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "aggregate1"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          booking_id as integer,",
+                "          flight_id as integer,",
+                "          origin_airport_id as integer,",
+                "          booking_date as date,",
+                "          Revenue as decimal(10,2),",
+                "          flight_duration_mins as integer,",
+                "          checkin_status as string,",
+                "          TicketCategory as string,",
+                "          DurationBucket as string,",
+                "          CheckingStatus as string,",
+                "          CheckingFlag as integer,",
+                "          Depature_timebucket as string,",
+                "          Arrival_timebucket as string,",
+                "          DimFlight_SK as long,",
+                "          dimpassenger_passenger_id as integer,",
+                "          DimPassenger_SK as long,",
+                "          Airline_Name as string,",
+                "          DimAirline_SK as long,",
+                "          OriginAirport_SK as long,",
+                "          DestinationAirport_SK as long,",
+                "          First_Name as string,",
+                "          Last_Name as string,",
+                "          flight_number as string,",
+                "          flight_duration_hours as double,",
+                "          Airport_ID as short,",
+                "          Origin_airport_name as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     isolationLevel: 'READ_UNCOMMITTED',",
+                "     format: 'table') ~> AirportTraffic",
+                "AirportTraffic aggregate(groupBy(Origin_airport_name),",
+                "     TotalFlights = countDistinct(flight_id)) ~> aggregate1",
+                "aggregate1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError') ~> Totalflights"
+            ]
+        }
+    }
+}
