@@ -1,0 +1,17 @@
+{
+    "name": "FileServer1",
+    "type": "Microsoft.DataFactory/factories/linkedservices",
+    "properties": {
+        "annotations": [],
+        "type": "FileServer",
+        "typeProperties": {
+            "host": "C:\\username\\files",
+            "userId": "email_id@outlook.com",
+            "encryptedCredential": ""
+        },
+        "connectVia": {
+            "referenceName": "selfhosted",
+            "type": "IntegrationRuntimeReference"
+        }
+    }
+}
