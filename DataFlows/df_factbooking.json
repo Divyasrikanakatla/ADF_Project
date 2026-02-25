@@ -1,0 +1,300 @@
+{
+    "name": "df_factbooking",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "dsflightbookingsqlparquet",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Factbookingsource"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "silverdimflightsinktable",
+                        "type": "DatasetReference"
+                    },
+                    "name": "dimflightsinksoource"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "silverdimpassengertable",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Dimpassengersinksource"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DimAirlineSql",
+                        "type": "DatasetReference"
+                    },
+                    "name": "DimAirlinesinksource"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "silverDimairport",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Dimairportsinksqltable"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "factbookingsilversinktable",
+                        "type": "DatasetReference"
+                    },
+                    "name": "factbookingsilversinktable"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "extracolumnsforfactbookings"
+                },
+                {
+                    "name": "validatetranscations"
+                },
+                {
+                    "name": "lookupDimflight"
+                },
+                {
+                    "name": "dimflightselectcolumns"
+                },
+                {
+                    "name": "dimpassengerselectcolumns"
+                },
+                {
+                    "name": "lookupDimpassenger"
+                },
+                {
+                    "name": "Dimairlineselectcolumns"
+                },
+                {
+                    "name": "lookupdimairline"
+                },
+                {
+                    "name": "DimAirportselectcolumns"
+                },
+                {
+                    "name": "lookupAirportoriginsk"
+                },
+                {
+                    "name": "renamesktooriginsk"
+                },
+                {
+                    "name": "lookupairportdesitinationsk"
+                },
+                {
+                    "name": "renametodestinationsk"
+                },
+                {
+                    "name": "alterRow1"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          booking_id as integer,",
+                "          passenger_id as integer,",
+                "          flight_id as integer,",
+                "          airline_id as integer,",
+                "          origin_airport_id as integer,",
+                "          destination_airport_id as integer,",
+                "          booking_date as date,",
+                "          ticket_cost as decimal(10,2),",
+                "          flight_duration_mins as integer,",
+                "          checkin_status as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> Factbookingsource",
+                "source(output(",
+                "          flight_id as integer,",
+                "          flight_number as string,",
+                "          departure_time as string,",
+                "          arrival_time as string,",
+                "          FlightDuration as integer,",
+                "          Depature_timebucket as string,",
+                "          Arrival_timebucket as string,",
+                "          DimFlight_SK as long",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     isolationLevel: 'READ_UNCOMMITTED',",
+                "     format: 'table') ~> dimflightsinksoource",
+                "source(output(",
+                "          passenger_id as integer,",
+                "          full_name as string,",
+                "          gender as string,",
+                "          age as integer,",
+                "          country as string,",
+                "          First_Name as string,",
+                "          Last_Name as string,",
+                "          Age_Group as string,",
+                "          DimPassenger_SK as long,",
+                "          DimPassengerCreateDate as timestamp,",
+                "          Source as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     isolationLevel: 'READ_UNCOMMITTED',",
+                "     format: 'table') ~> Dimpassengersinksource",
+                "source(output(",
+                "          Airline_ID as short,",
+                "          Airline_Name as string,",
+                "          country as string,",
+                "          Airlinecode as string,",
+                "          CreatedDate as timestamp,",
+                "          Source as string,",
+                "          DimAirline_SK as long",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     isolationLevel: 'READ_UNCOMMITTED',",
+                "     format: 'table') ~> DimAirlinesinksource",
+                "source(output(",
+                "          Airport_ID as short,",
+                "          Airport_Name as string,",
+                "          city as string,",
+                "          country as string,",
+                "          AirportCode as string,",
+                "          CityCountry as string,",
+                "          DimAirport_SK as long",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     isolationLevel: 'READ_UNCOMMITTED',",
+                "     format: 'table') ~> Dimairportsinksqltable",
+                "Factbookingsource derive(TicketCategory = iif(ticket_cost <= 300,'Low',iif(ticket_cost <=700,'Medium','High')),",
+                "          DurationBucket = iif(flight_duration_mins <= 180 ,'Short',iif(flight_duration_mins <= 420,'Medium','Long')),",
+                "          CheckingStatus = upper(checkin_status),",
+                "          CheckingFlag = iif(checkin_status == 'YES',1,0),",
+                "          LoadDate = currentTimestamp()) ~> extracolumnsforfactbookings",
+                "extracolumnsforfactbookings filter(ticket_cost > 0 && flight_duration_mins > 0) ~> validatetranscations",
+                "validatetranscations, dimflightselectcolumns lookup(flight_id == dimflight_flight_id,",
+                "     multiple: false,",
+                "     pickup: 'any',",
+                "     broadcast: 'auto')~> lookupDimflight",
+                "dimflightsinksoource select(mapColumn(",
+                "          dimflight_flight_id = flight_id,",
+                "          Depature_timebucket,",
+                "          Arrival_timebucket,",
+                "          DimFlight_SK",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> dimflightselectcolumns",
+                "Dimpassengersinksource select(mapColumn(",
+                "          dimpassenger_passenger_id = passenger_id,",
+                "          Age_Group,",
+                "          DimPassenger_SK",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> dimpassengerselectcolumns",
+                "lookupDimflight, dimpassengerselectcolumns lookup(passenger_id == dimpassenger_passenger_id,",
+                "     multiple: false,",
+                "     pickup: 'any',",
+                "     broadcast: 'auto')~> lookupDimpassenger",
+                "DimAirlinesinksource select(mapColumn(",
+                "          dimairline_Airline_ID = Airline_ID,",
+                "          Airline_Name,",
+                "          DimAirline_SK",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> Dimairlineselectcolumns",
+                "lookupDimpassenger, Dimairlineselectcolumns lookup(airline_id == dimairline_Airline_ID,",
+                "     multiple: false,",
+                "     pickup: 'any',",
+                "     broadcast: 'auto')~> lookupdimairline",
+                "Dimairportsinksqltable select(mapColumn(",
+                "          DimAirport_Airport_ID = Airport_ID,",
+                "          DimAirport_SK",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> DimAirportselectcolumns",
+                "lookupdimairline, DimAirportselectcolumns lookup(origin_airport_id == DimAirport_Airport_ID,",
+                "     multiple: false,",
+                "     pickup: 'any',",
+                "     broadcast: 'auto')~> lookupAirportoriginsk",
+                "lookupAirportoriginsk select(mapColumn(",
+                "          booking_id,",
+                "          passenger_id,",
+                "          flight_id,",
+                "          airline_id,",
+                "          origin_airport_id,",
+                "          destination_airport_id,",
+                "          booking_date,",
+                "          ticket_cost,",
+                "          flight_duration_mins,",
+                "          checkin_status,",
+                "          TicketCategory,",
+                "          DurationBucket,",
+                "          CheckingStatus,",
+                "          CheckingFlag,",
+                "          dimflight_flight_id,",
+                "          Depature_timebucket,",
+                "          Arrival_timebucket,",
+                "          DimFlight_SK,",
+                "          dimpassenger_passenger_id,",
+                "          Age_Group,",
+                "          DimPassenger_SK,",
+                "          dimairline_Airline_ID,",
+                "          Airline_Name,",
+                "          DimAirline_SK,",
+                "          DimAirport_Airport_ID,",
+                "          OriginAirport_SK = DimAirport_SK",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> renamesktooriginsk",
+                "renamesktooriginsk, DimAirportselectcolumns lookup(destination_airport_id == DimAirportselectcolumns@DimAirport_Airport_ID,",
+                "     multiple: false,",
+                "     pickup: 'any',",
+                "     broadcast: 'auto')~> lookupairportdesitinationsk",
+                "lookupairportdesitinationsk select(mapColumn(",
+                "          booking_id,",
+                "          passenger_id,",
+                "          flight_id,",
+                "          airline_id,",
+                "          origin_airport_id,",
+                "          destination_airport_id,",
+                "          booking_date,",
+                "          ticket_cost,",
+                "          flight_duration_mins,",
+                "          checkin_status,",
+                "          TicketCategory,",
+                "          DurationBucket,",
+                "          CheckingStatus,",
+                "          CheckingFlag,",
+                "          dimflight_flight_id,",
+                "          Depature_timebucket,",
+                "          Arrival_timebucket,",
+                "          DimFlight_SK,",
+                "          dimpassenger_passenger_id,",
+                "          Age_Group,",
+                "          DimPassenger_SK,",
+                "          dimairline_Airline_ID,",
+                "          Airline_Name,",
+                "          DimAirline_SK,",
+                "          DimAirport_Airport_ID = renamesktooriginsk@DimAirport_Airport_ID,",
+                "          OriginAirport_SK,",
+                "          DimAirport_Airport_ID = DimAirportselectcolumns@DimAirport_Airport_ID,",
+                "          DestinationAirport_SK = DimAirport_SK",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> renametodestinationsk",
+                "renametodestinationsk alterRow(insertIf(1==1)) ~> alterRow1",
+                "alterRow1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError') ~> factbookingsilversinktable"
+            ]
+        }
+    }
+}
