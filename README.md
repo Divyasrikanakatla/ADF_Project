@@ -21,3 +21,11 @@ This project demonstrates a **complete ETL and data orchestration workflow** in 
 ---
 
 ## Repo Structure
+ADF_Project/
+├── pipelines/ # Orchestration pipelines
+├── dataflows/ # Mapping data flows (transformations)
+├── linkedServices/ # Connections to SQL, File Server, ADLS, HTTP
+├── datasets/ # Representative datasets for demonstration
+├── integrationRuntimes/ # Self-hosted IR configuration
+
+
