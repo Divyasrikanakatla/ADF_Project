@@ -1,0 +1,72 @@
+{
+    "name": "Revenuebyairlinegold",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "AzureSqlTable5",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Factbokkingsgold"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "AzureSqlTable6",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Revenuebyairlinegold"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "aggregate1"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          flight_number as string,",
+                "          DimFlight_SK as long,",
+                "          DimAirline_SK as long,",
+                "          DimPassenger_SK as long,",
+                "          OriginAirport_SK as long,",
+                "          DestinationAirport_SK as long,",
+                "          First_Name as string,",
+                "          Last_Name as string,",
+                "          Age_Group as string,",
+                "          Airline_Name as string,",
+                "          Depature_timebucket as string,",
+                "          Arrival_timebucket as string,",
+                "          flight_duration_hours as double,",
+                "          Revenue as decimal(10,2),",
+                "          TicketCategory as string,",
+                "          DurationBucket as string,",
+                "          checkin_status as string,",
+                "          CheckingStatus as string,",
+                "          CheckingFlag as integer,",
+                "          booking_id as integer",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     isolationLevel: 'READ_UNCOMMITTED',",
+                "     format: 'table') ~> Factbokkingsgold",
+                "Factbokkingsgold aggregate(groupBy(Airline_Name),",
+                "     TotalRevenue = sum(Revenue),",
+                "          TotalBookings = count(booking_id)) ~> aggregate1",
+                "aggregate1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError') ~> Revenuebyairlinegold"
+            ]
+        }
+    }
+}
