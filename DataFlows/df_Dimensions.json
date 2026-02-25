@@ -1,0 +1,322 @@
+{
+    "name": "df_Dimensions",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DSsilversource",
+                        "type": "DatasetReference"
+                    },
+                    "name": "DimAirline"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "dsdimflight",
+                        "type": "DatasetReference"
+                    },
+                    "name": "DimFlight"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "dsdimpassenger",
+                        "type": "DatasetReference"
+                    },
+                    "name": "DimPassenger"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "dsdimairportjason",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Dimairport"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "silverDimairport",
+                        "type": "DatasetReference"
+                    },
+                    "name": "Dimairportsink"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "AzureSqlTable3",
+                        "type": "DatasetReference"
+                    },
+                    "name": "DimPassengersink"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DimFlightsql",
+                        "type": "DatasetReference"
+                    },
+                    "name": "DimFlightsql"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DimAirlineSql",
+                        "type": "DatasetReference"
+                    },
+                    "name": "DimAirlinesqlsink"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "Airportcodederivecolumn"
+                },
+                {
+                    "name": "Countryuppercase"
+                },
+                {
+                    "name": "cityandcountryconcat"
+                },
+                {
+                    "name": "select1"
+                },
+                {
+                    "name": "filter1"
+                },
+                {
+                    "name": "surrogateKey1"
+                },
+                {
+                    "name": "derivedColumn"
+                },
+                {
+                    "name": "filter2"
+                },
+                {
+                    "name": "Conditionalsplit"
+                },
+                {
+                    "name": "surrogateKey2"
+                },
+                {
+                    "name": "derivedColumn1"
+                },
+                {
+                    "name": "overnightcolumn"
+                },
+                {
+                    "name": "flightdurationminutes"
+                },
+                {
+                    "name": "surrogateKey3"
+                },
+                {
+                    "name": "Airlineadditionalcolumns"
+                },
+                {
+                    "name": "selectAirline"
+                },
+                {
+                    "name": "surrogateKey4"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          airline_id as short,",
+                "          airline_name as string,",
+                "          country as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> DimAirline",
+                "source(output(",
+                "          flight_id as short,",
+                "          flight_number as string,",
+                "          departure_time as string,",
+                "          arrival_time as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> DimFlight",
+                "source(output(",
+                "          passenger_id as short,",
+                "          full_name as string,",
+                "          gender as string,",
+                "          age as short,",
+                "          country as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> DimPassenger",
+                "source(output(",
+                "          airport_id as short,",
+                "          airport_name as string,",
+                "          city as string,",
+                "          country as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     documentForm: 'arrayOfDocuments') ~> Dimairport",
+                "Dimairport derive(AirportCode = substring(toString(airport_name), 1,3)) ~> Airportcodederivecolumn",
+                "Airportcodederivecolumn derive(country = upper(country),",
+                "          CreateDate = currentTimestamp(),",
+                "          Source = 'Json') ~> Countryuppercase",
+                "Countryuppercase derive(CityCountry = concat(toString(city),'-',toString(country))) ~> cityandcountryconcat",
+                "cityandcountryconcat select(mapColumn(",
+                "          Airport_ID = airport_id,",
+                "          Airport_Name = airport_name,",
+                "          city,",
+                "          country,",
+                "          AirportCode,",
+                "          CityCountry",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> select1",
+                "surrogateKey1 filter(!isNull(Airport_ID)&&!isNull(country)) ~> filter1",
+                "select1 keyGenerate(output(DimAirport_SK as long),",
+                "     startAt: 1L,",
+                "     stepValue: 1L) ~> surrogateKey1",
+                "DimPassenger derive(First_Name = iif(\r",
+                "    instr(trim(toString(full_name)), ' ') == 0,\r",
+                "    trim(toString(full_name)),\r",
+                "    substring(\r",
+                "        trim(toString(full_name)),\r",
+                "        1,\r",
+                "        instr(trim(toString(full_name)), ' ') - 1\r",
+                "    )\r",
+                "),",
+                "          Last_Name = iif(\r",
+                "    instr(trim(toString(full_name)), ' ') == 0,\r",
+                "    '',\r",
+                "    substring(\r",
+                "        trim(toString(full_name)),\r",
+                "        instr(trim(toString(full_name)), ' ') + 1,\r",
+                "        length(trim(toString(full_name))) - instr(trim(toString(full_name)), ' ')\r",
+                "    )\r",
+                "),",
+                "          Age_Group = iif(age < 30 ,'young',iif(age <= 40, 'adult','senior'))) ~> derivedColumn",
+                "derivedColumn filter(age > 0 && age < 100) ~> filter2",
+                "filter2 split(upper(trim(country)) == 'USA',",
+                "     upper(trim(country)) != 'USA',",
+                "     disjoint: false) ~> Conditionalsplit@(US, NonUS)",
+                "Conditionalsplit@NonUS keyGenerate(output(DimPassenger_SK as long),",
+                "     startAt: 1L,",
+                "     stepValue: 1L) ~> surrogateKey2",
+                "surrogateKey2 derive(DimPassengerCreateDate = currentTimestamp(),",
+                "          Source = 'OnPremCSVfile') ~> derivedColumn1",
+                "DimFlight derive(FlightDuration = iif(\r",
+                "    (\r",
+                "        hour(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm')) * 60 +\r",
+                "        minute(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm'))\r",
+                "    ) >=\r",
+                "    (\r",
+                "        hour(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm')) * 60 +\r",
+                "        minute(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm'))\r",
+                "    ),\r",
+                "\r",
+                "    (\r",
+                "        hour(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm')) * 60 +\r",
+                "        minute(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm'))\r",
+                "    ) -\r",
+                "    (\r",
+                "        hour(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm')) * 60 +\r",
+                "        minute(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm'))\r",
+                "    ),\r",
+                "\r",
+                "    (\r",
+                "        hour(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm')) * 60 +\r",
+                "        minute(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm'))\r",
+                "    ) -\r",
+                "    (\r",
+                "        hour(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm')) * 60 +\r",
+                "        minute(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm'))\r",
+                "    ) + 1440\r",
+                "),",
+                "          Depature_timebucket = iif(\r",
+                "    hour(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm')) < 6,\r",
+                "    'Night',\r",
+                "    iif(\r",
+                "        hour(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm')) < 12,\r",
+                "        'Morning',\r",
+                "        iif(\r",
+                "            hour(toTimestamp('1970-01-01 ' + departure_time, 'yyyy-MM-dd HH:mm')) < 18,\r",
+                "            'Afternoon',\r",
+                "            'Evening'\r",
+                "        )\r",
+                "    )\r",
+                "),",
+                "          Arrival_timebucket = iif(\r",
+                "    hour(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm')) < 6,\r",
+                "    'Night',\r",
+                "    iif(\r",
+                "        hour(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm')) < 12,\r",
+                "        'Morning',\r",
+                "        iif(\r",
+                "            hour(toTimestamp('1970-01-01 ' + arrival_time, 'yyyy-MM-dd HH:mm')) < 18,\r",
+                "            'Afternoon',\r",
+                "            'Evening'\r",
+                "        )\r",
+                "    )\r",
+                ")) ~> overnightcolumn",
+                "overnightcolumn filter(FlightDuration > 0) ~> flightdurationminutes",
+                "flightdurationminutes keyGenerate(output(DimFlight_SK as long),",
+                "     startAt: 1L,",
+                "     stepValue: 1L) ~> surrogateKey3",
+                "DimAirline derive(Airlinecode = substring(airline_name, 1, 3),",
+                "          country = upper(country),",
+                "          CreatedDate = currentTimestamp(),",
+                "          Source = 'OnpremCSVfile') ~> Airlineadditionalcolumns",
+                "Airlineadditionalcolumns select(mapColumn(",
+                "          Airline_ID = airline_id,",
+                "          Airline_Name = airline_name,",
+                "          country,",
+                "          Airlinecode,",
+                "          CreatedDate,",
+                "          Source",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> selectAirline",
+                "selectAirline keyGenerate(output(DimAirline_SK as long),",
+                "     startAt: 1L,",
+                "     stepValue: 1L) ~> surrogateKey4",
+                "filter1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError') ~> Dimairportsink",
+                "derivedColumn1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError') ~> DimPassengersink",
+                "surrogateKey3 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError') ~> DimFlightsql",
+                "surrogateKey4 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError') ~> DimAirlinesqlsink"
+            ]
+        }
+    }
+}
